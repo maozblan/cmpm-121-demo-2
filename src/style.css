@@ -97,8 +97,6 @@ button:focus-visible {
 /* i was here */
 
 canvas {
-  width: 256px;
-  height: 256px;
   border: #0a0a0a 1px solid;
   border-radius: 0.5em;
   box-shadow: 0.5em 0.5em 0.5em #00000066;

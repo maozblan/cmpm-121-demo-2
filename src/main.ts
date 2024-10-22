@@ -11,6 +11,8 @@ title.textContent = APP_NAME;
 app.append(title);
 
 const canvas = document.createElement("canvas");
+canvas.width = 256;
+canvas.height = 256;
 app.append(canvas);
 
 let x: number = 0;
@@ -53,3 +55,10 @@ function drawLine(
   ctx.stroke();
   ctx.closePath();
 }
+
+const clearButton = document.createElement("button");
+clearButton.textContent = "clear";
+clearButton.addEventListener("click", () => {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+});
+app.append(clearButton);
