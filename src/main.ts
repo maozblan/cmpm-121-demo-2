@@ -4,7 +4,6 @@ const APP_NAME = "boopadoop";
 const app = document.querySelector<HTMLDivElement>("#app")!;
 
 document.title = APP_NAME;
-// app.innerHTML = APP_NAME;
 
 const title = document.createElement("h1");
 title.textContent = APP_NAME;
@@ -15,28 +14,34 @@ canvas.width = 256;
 canvas.height = 256;
 app.append(canvas);
 
-let x: number = 0;
-let y: number = 0;
 let isDrawing: boolean = false;
 const ctx: CanvasRenderingContext2D = canvas.getContext("2d")!;
 canvas.addEventListener("mousedown", (e) => {
-  x = e.offsetX;
-  y = e.offsetY;
+  points.push({ x: e.offsetX, y: e.offsetY });
   isDrawing = true;
+  document.dispatchEvent(drawingEvent);
 });
 canvas.addEventListener("mousemove", (e) => {
   if (isDrawing) {
-    drawLine(ctx, x, y, e.offsetX, e.offsetY);
-    x = e.offsetX;
-    y = e.offsetY;
+    points.push({ x: e.offsetX, y: e.offsetY });
+    document.dispatchEvent(drawingEvent);
   }
 });
 document.addEventListener("mouseup", (e) => {
   if (isDrawing) {
-    drawLine(ctx, x, y, e.offsetX, e.offsetY);
-    x = 0;
-    y = 0;
+    points.push({ x: e.offsetX, y: e.offsetY });
+    points.push({ x: -42, y: -42 }); // line end
+    document.dispatchEvent(drawingEvent);
     isDrawing = false;
+  }
+});
+document.addEventListener("drawing-changed", () => {
+  for (let i = 0; i < points.length - 1; ++i) {
+    if (points[i+1].x === -42 && points[i+1].y === -42) {
+      i += 1;
+      continue;
+    }
+    drawLine(ctx, points[i].x, points[i].y, points[i + 1].x, points[i + 1].y);
   }
 });
 
@@ -59,6 +64,14 @@ function drawLine(
 const clearButton = document.createElement("button");
 clearButton.textContent = "clear";
 clearButton.addEventListener("click", () => {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  clearCanvas();
+  points.length = 0;
 });
 app.append(clearButton);
+
+function clearCanvas() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+}
+
+const drawingEvent: Event = new Event("drawing-changed");
+const points: { x: number; y: number }[] = [];
