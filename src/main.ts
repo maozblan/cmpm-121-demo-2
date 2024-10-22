@@ -17,31 +17,28 @@ app.append(canvas);
 let isDrawing: boolean = false;
 const ctx: CanvasRenderingContext2D = canvas.getContext("2d")!;
 canvas.addEventListener("mousedown", (e) => {
-  points.push({ x: e.offsetX, y: e.offsetY });
+  lines.push([{ x: e.offsetX, y: e.offsetY }]);
   isDrawing = true;
   document.dispatchEvent(drawingEvent);
 });
 canvas.addEventListener("mousemove", (e) => {
   if (isDrawing) {
-    points.push({ x: e.offsetX, y: e.offsetY });
+    lines[lines.length-1].push({ x: e.offsetX, y: e.offsetY });
     document.dispatchEvent(drawingEvent);
   }
 });
 document.addEventListener("mouseup", (e) => {
   if (isDrawing) {
-    points.push({ x: e.offsetX, y: e.offsetY });
-    points.push({ x: -42, y: -42 }); // line end
+    lines[lines.length-1].push({ x: e.offsetX, y: e.offsetY });
     document.dispatchEvent(drawingEvent);
     isDrawing = false;
   }
 });
 document.addEventListener("drawing-changed", () => {
-  for (let i = 0; i < points.length - 1; ++i) {
-    if (points[i+1].x === -42 && points[i+1].y === -42) {
-      i += 1;
-      continue;
+  for (const line of lines) {
+    for (let i = 0; i < line.length-1; ++i) {
+      drawLine(ctx, line[i].x, line[i].y, line[i + 1].x, line[i + 1].y);
     }
-    drawLine(ctx, points[i].x, points[i].y, points[i + 1].x, points[i + 1].y);
   }
 });
 
@@ -65,7 +62,7 @@ const clearButton = document.createElement("button");
 clearButton.textContent = "clear";
 clearButton.addEventListener("click", () => {
   clearCanvas();
-  points.length = 0;
+  lines.length = 0;
 });
 app.append(clearButton);
 
@@ -74,4 +71,8 @@ function clearCanvas() {
 }
 
 const drawingEvent: Event = new Event("drawing-changed");
-const points: { x: number; y: number }[] = [];
+interface Point {
+  x: number;
+  y: number;
+}
+const lines: Point[][] = [];
