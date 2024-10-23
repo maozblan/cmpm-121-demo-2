@@ -20,6 +20,7 @@ canvas.addEventListener("mousedown", (e) => {
   lines.push([{ x: e.offsetX, y: e.offsetY }]);
   isDrawing = true;
   document.dispatchEvent(drawingEvent);
+  undoneLines.length = 0;
 });
 canvas.addEventListener("mousemove", (e) => {
   if (isDrawing) {
@@ -77,12 +78,22 @@ interface Point {
   y: number;
 }
 const lines: Point[][] = [];
+const undoneLines: Point[][] = [];
 
 const undoButton = document.createElement("button");
 undoButton.textContent = "undo";
 undoButton.addEventListener("click", () => {
   if (lines.length === 0) return;
-  lines.pop();
+  undoneLines.unshift(lines.pop()!);
   document.dispatchEvent(drawingEvent);
 });
 app.append(undoButton);
+
+const redoButton = document.createElement("button");
+redoButton.textContent = "redo";
+redoButton.addEventListener("click", () => {
+  if (undoneLines.length === 0) return;
+  lines.push(undoneLines.shift()!);
+  document.dispatchEvent(drawingEvent);
+});
+app.append(redoButton);
