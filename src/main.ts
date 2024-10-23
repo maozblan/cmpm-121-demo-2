@@ -23,20 +23,21 @@ canvas.addEventListener("mousedown", (e) => {
 });
 canvas.addEventListener("mousemove", (e) => {
   if (isDrawing) {
-    lines[lines.length-1].push({ x: e.offsetX, y: e.offsetY });
+    lines[lines.length - 1].push({ x: e.offsetX, y: e.offsetY });
     document.dispatchEvent(drawingEvent);
   }
 });
 document.addEventListener("mouseup", (e) => {
   if (isDrawing) {
-    lines[lines.length-1].push({ x: e.offsetX, y: e.offsetY });
+    lines[lines.length - 1].push({ x: e.offsetX, y: e.offsetY });
     document.dispatchEvent(drawingEvent);
     isDrawing = false;
   }
 });
 document.addEventListener("drawing-changed", () => {
+  clearCanvas();
   for (const line of lines) {
-    for (let i = 0; i < line.length-1; ++i) {
+    for (let i = 0; i < line.length - 1; ++i) {
       drawLine(ctx, line[i].x, line[i].y, line[i + 1].x, line[i + 1].y);
     }
   }
