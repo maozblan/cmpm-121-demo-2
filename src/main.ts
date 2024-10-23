@@ -5,6 +5,21 @@ const app = document.querySelector<HTMLDivElement>("#app")!;
 
 document.title = APP_NAME;
 
+const drawingEvent: Event = new Event("drawing-changed");
+interface Point {
+  x: number;
+  y: number;
+}
+const lines: Line[] = [];
+const undoneLines: Line[] = [];
+
+interface CanvasCtx {
+  lines: Line[];
+  undoBuffer: Line[];
+  display: (ctx: CanvasRenderingContext2D) => void;
+}
+type Line = Point[];
+
 const title = document.createElement("h1");
 title.textContent = APP_NAME;
 app.append(title);
@@ -76,14 +91,6 @@ function clearCanvas() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 }
 
-const drawingEvent: Event = new Event("drawing-changed");
-interface Point {
-  x: number;
-  y: number;
-}
-const lines: Point[][] = [];
-const undoneLines: Point[][] = [];
-
 const undoButton = document.createElement("button");
 undoButton.textContent = "undo";
 undoButton.addEventListener("click", () => {
@@ -106,4 +113,35 @@ buttonContainer.append(redoButton);
 // deno-lint-ignore no-explicit-any
 function clearList(list: any[]) {
   list.length = 0;
+}
+
+function display(ctx: CanvasRenderingContext2D): void {
+  for (const line of lines) {
+    for (let i = 0; i < line.length - 1; ++i) {
+      drawLine(ctx, line[i].x, line[i].y, line[i + 1].x, line[i + 1].y);
+    }
+  }
+}
+
+function newLine(canvas: CanvasCtx, point: Point): void {
+  canvas.lines.push([point]);
+  document.dispatchEvent(drawingEvent);
+}
+
+function extendLine(canvas: CanvasCtx, point: Point): void {
+  if (canvas.lines.length === 0) return;
+  canvas.lines[canvas.lines.length - 1].push(point);
+  document.dispatchEvent(drawingEvent);
+}
+
+function undo(canvas: CanvasCtx) {
+  if (canvas.lines.length === 0) return;
+  canvas.undoBuffer.unshift(canvas.lines.pop()!);
+  document.dispatchEvent(drawingEvent);
+}
+
+function redo(canvas: CanvasCtx) {
+  if (canvas.undoBuffer.length === 0) return;
+  canvas.lines.push(canvas.undoBuffer.shift()!);
+  document.dispatchEvent(drawingEvent);
 }
