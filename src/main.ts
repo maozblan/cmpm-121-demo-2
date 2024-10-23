@@ -14,12 +14,16 @@ canvas.width = 256;
 canvas.height = 256;
 app.append(canvas);
 
+const buttonContainer = document.createElement("div");
+app.append(buttonContainer);
+
 let isDrawing: boolean = false;
 const ctx: CanvasRenderingContext2D = canvas.getContext("2d")!;
 canvas.addEventListener("mousedown", (e) => {
   lines.push([{ x: e.offsetX, y: e.offsetY }]);
   isDrawing = true;
   document.dispatchEvent(drawingEvent);
+  clearList(undoneLines);
   undoneLines.length = 0;
 });
 canvas.addEventListener("mousemove", (e) => {
@@ -64,9 +68,9 @@ const clearButton = document.createElement("button");
 clearButton.textContent = "clear";
 clearButton.addEventListener("click", () => {
   clearCanvas();
-  lines.length = 0;
+  clearList(lines);
 });
-app.append(clearButton);
+buttonContainer.append(clearButton);
 
 function clearCanvas() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -87,7 +91,7 @@ undoButton.addEventListener("click", () => {
   undoneLines.unshift(lines.pop()!);
   document.dispatchEvent(drawingEvent);
 });
-app.append(undoButton);
+buttonContainer.append(undoButton);
 
 const redoButton = document.createElement("button");
 redoButton.textContent = "redo";
@@ -96,4 +100,10 @@ redoButton.addEventListener("click", () => {
   lines.push(undoneLines.shift()!);
   document.dispatchEvent(drawingEvent);
 });
-app.append(redoButton);
+buttonContainer.append(redoButton);
+
+// @ts-ignore: all purpose function
+// deno-lint-ignore no-explicit-any
+function clearList(list: any[]) {
+  list.length = 0;
+}
