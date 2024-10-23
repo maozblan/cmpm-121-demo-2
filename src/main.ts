@@ -77,3 +77,12 @@ interface Point {
   y: number;
 }
 const lines: Point[][] = [];
+
+const undoButton = document.createElement("button");
+undoButton.textContent = "undo";
+undoButton.addEventListener("click", () => {
+  if (lines.length === 0) return;
+  lines.pop();
+  document.dispatchEvent(drawingEvent);
+});
+app.append(undoButton);
