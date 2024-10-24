@@ -14,14 +14,15 @@ function clearList(list: any[]) {
 
 function drawLine(
   ctx: CanvasRenderingContext2D,
+  lineWidth: number,
   x1: number,
   y1: number,
   x2: number,
-  y2: number
+  y2: number,
 ) {
   ctx.beginPath();
   ctx.strokeStyle = "black";
-  ctx.lineWidth = 1;
+  ctx.lineWidth = lineWidth;
   ctx.moveTo(x1, y1);
   ctx.lineTo(x2, y2);
   ctx.stroke();
@@ -33,12 +34,15 @@ interface Point {
   x: number;
   y: number;
 }
-type Line = Point[];
+interface Line {
+  points: Point[];
+  width: number;
+}
 interface CanvasCtx {
   lines: Line[];
   undoBuffer: Line[];
   display: (ctx: CanvasRenderingContext2D) => void;
-  newLine: (point: Point) => void;
+  newLine: (point: Point, width: number) => void;
   extendNextLine: (point: Point) => void;
   undo: () => void;
   redo: () => void;
@@ -49,19 +53,26 @@ const canvasContent: CanvasCtx = {
   undoBuffer: [],
   display: function (ctx: CanvasRenderingContext2D): void {
     this.lines.forEach((line) => {
-      for (let i = 0; i < line.length - 1; ++i) {
-        drawLine(ctx, line[i].x, line[i].y, line[i + 1].x, line[i + 1].y);
+      for (let i = 0; i < line.points.length - 1; ++i) {
+        drawLine(
+          ctx,
+          line.width,
+          line.points[i].x,
+          line.points[i].y,
+          line.points[i + 1].x,
+          line.points[i + 1].y,
+        );
       }
     });
   },
-  newLine: function (point: Point): void {
-    this.lines.push([point]);
+  newLine: function (point: Point, width: number): void {
+    this.lines.push({points: [point], width});
     document.dispatchEvent(drawingEvent);
     clearList(this.undoBuffer);
   },
   extendNextLine: function (point: Point): void {
     if (this.lines.length === 0) return;
-    this.lines[this.lines.length - 1].push(point);
+    this.lines[this.lines.length - 1].points.push(point);
     document.dispatchEvent(drawingEvent);
   },
   undo: function () {
@@ -119,10 +130,25 @@ buttonContainer.append(redoButton);
 const markerContainer = document.createElement("div");
 app.append(markerContainer);
 
+const thinMarker = document.createElement("button");
+thinMarker.textContent = "thin";
+thinMarker.addEventListener("click", () => {
+  markerThickness = 1;
+});
+markerContainer.append(thinMarker);
+
+const thickMarker = document.createElement("button");
+thickMarker.textContent = "thick";
+thickMarker.addEventListener("click", () => {
+  markerThickness = 5;
+});
+markerContainer.append(thickMarker);
+
 // event listeners /////////////////////////////////////////////////////////////
 let isDrawing: boolean = false;
+let markerThickness = 1;
 canvas.addEventListener("mousedown", (e) => {
-  canvasContent.newLine({ x: e.offsetX, y: e.offsetY });
+  canvasContent.newLine({ x: e.offsetX, y: e.offsetY }, markerThickness);
   isDrawing = true;
 });
 canvas.addEventListener("mousemove", (e) => {
