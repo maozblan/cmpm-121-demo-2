@@ -11,13 +11,12 @@ function observe(event: string, detail?: unknown) {
   observationDock.dispatchEvent(new CustomEvent(event, { detail }));
 }
 observationDock.addEventListener("drawing-changed", () => {
-  canvasContent.display(ctx);
+  displayDrawing();
 });
 observationDock.addEventListener("tool-moved", (event: Event) => {
   const cursorEvent = event as CustomEvent<Point>;
-  const { x, y } = cursorEvent.detail;
-  canvasContent.cursor.location = { x, y };
-  canvasContent.display(ctx);
+  cursor.update(cursorEvent.detail);
+  displayDrawing();
 });
 
 // @ts-ignore: all purpose function
@@ -57,14 +56,11 @@ const canvasContent: CanvasCtx = {
     location: { x: 0, y: 0 },
   },
   display: function (ctx: CanvasRenderingContext2D): void {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
     this.lines.forEach((line) => {
       for (let i = 0; i < line.points.length - 1; ++i) {
         drawLine(line.width, line.points[i], line.points[i + 1]);
       }
     });
-    const cursorSize = 13 * Math.log(this.lineWidth / 0.05);
-    drawCursor(this.cursor.location);
 
     function drawLine(lineWidth: number, start: Point, end: Point) {
       ctx.beginPath();
@@ -74,11 +70,6 @@ const canvasContent: CanvasCtx = {
       ctx.lineTo(end.x, end.y);
       ctx.stroke();
       ctx.closePath();
-    }
-    function drawCursor(loc: Point) {
-      ctx.font = `${cursorSize}px monospace`;
-      const offset = ctx.measureText("*").width / 2;
-      ctx.fillText("*", loc.x - offset, loc.y + offset);
     }
   },
   newLine: function (point: Point): void {
@@ -106,6 +97,25 @@ const canvasContent: CanvasCtx = {
     clearList(this.undoBuffer);
     observe("drawing-changed");
   },
+};
+interface Cursor {
+  canvasContext: CanvasCtx;
+  location: Point;
+  display: (ctx: CanvasRenderingContext2D) => void;
+  update: (point: Point) => void;
+}
+const cursor: Cursor = {
+  canvasContext: canvasContent,
+  location: { x: 0, y: 0 },
+  display: function (ctx: CanvasRenderingContext2D): void {
+    const cursorSize = 13 * Math.log(this.canvasContext.lineWidth / 0.05);
+    ctx.font = `${cursorSize}px monospace`;
+    const offset = ctx.measureText("*").width / 2;
+    ctx.fillText("*", this.location.x - offset, this.location.y + offset);
+  },
+  update: function (point: Point): void {
+    this.location = point;
+  }
 };
 
 // application interface //////////////////////////////////////////////////////
@@ -183,8 +193,10 @@ document.addEventListener("mouseup", (e) => {
 });
 
 // loop ////////////////////////////////////////////////////////////////////////
-function tick() {
+function displayDrawing() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
   canvasContent.display(ctx);
-  requestAnimationFrame(tick);
+  cursor.display(ctx);
+  requestAnimationFrame(displayDrawing);
 }
-tick();
+displayDrawing();
