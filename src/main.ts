@@ -10,15 +10,23 @@ interface Point {
   x: number;
   y: number;
 }
-const lines: Line[] = [];
-const undoneLines: Line[] = [];
-
+type Line = Point[];
 interface CanvasCtx {
   lines: Line[];
   undoBuffer: Line[];
   display: (ctx: CanvasRenderingContext2D) => void;
 }
-type Line = Point[];
+const canvasContent: CanvasCtx = {
+  lines: [],
+  undoBuffer: [],
+  display: function (ctx: CanvasRenderingContext2D): void {
+    this.lines.forEach((line) => {
+      for (let i = 0; i < line.length - 1; ++i) {
+        drawLine(ctx, line[i].x, line[i].y, line[i + 1].x, line[i + 1].y);
+      }
+    });
+  },
+};
 
 const title = document.createElement("h1");
 title.textContent = APP_NAME;
@@ -35,32 +43,23 @@ app.append(buttonContainer);
 let isDrawing: boolean = false;
 const ctx: CanvasRenderingContext2D = canvas.getContext("2d")!;
 canvas.addEventListener("mousedown", (e) => {
-  lines.push([{ x: e.offsetX, y: e.offsetY }]);
+  newLine(canvasContent, { x: e.offsetX, y: e.offsetY });
   isDrawing = true;
-  document.dispatchEvent(drawingEvent);
-  clearList(undoneLines);
-  undoneLines.length = 0;
 });
 canvas.addEventListener("mousemove", (e) => {
   if (isDrawing) {
-    lines[lines.length - 1].push({ x: e.offsetX, y: e.offsetY });
-    document.dispatchEvent(drawingEvent);
+    extendNextLine(canvasContent, { x: e.offsetX, y: e.offsetY });
   }
 });
 document.addEventListener("mouseup", (e) => {
   if (isDrawing) {
-    lines[lines.length - 1].push({ x: e.offsetX, y: e.offsetY });
-    document.dispatchEvent(drawingEvent);
+    extendNextLine(canvasContent, { x: e.offsetX, y: e.offsetY });
     isDrawing = false;
   }
 });
 document.addEventListener("drawing-changed", () => {
-  clearCanvas();
-  for (const line of lines) {
-    for (let i = 0; i < line.length - 1; ++i) {
-      drawLine(ctx, line[i].x, line[i].y, line[i + 1].x, line[i + 1].y);
-    }
-  }
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  canvasContent.display(ctx);
 });
 
 function drawLine(
@@ -82,30 +81,21 @@ function drawLine(
 const clearButton = document.createElement("button");
 clearButton.textContent = "clear";
 clearButton.addEventListener("click", () => {
-  clearCanvas();
-  clearList(lines);
+  clear(canvasContent);
 });
 buttonContainer.append(clearButton);
-
-function clearCanvas() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-}
 
 const undoButton = document.createElement("button");
 undoButton.textContent = "undo";
 undoButton.addEventListener("click", () => {
-  if (lines.length === 0) return;
-  undoneLines.unshift(lines.pop()!);
-  document.dispatchEvent(drawingEvent);
+  undo(canvasContent);
 });
 buttonContainer.append(undoButton);
 
 const redoButton = document.createElement("button");
 redoButton.textContent = "redo";
 redoButton.addEventListener("click", () => {
-  if (undoneLines.length === 0) return;
-  lines.push(undoneLines.shift()!);
-  document.dispatchEvent(drawingEvent);
+  redo(canvasContent);
 });
 buttonContainer.append(redoButton);
 
@@ -115,20 +105,13 @@ function clearList(list: any[]) {
   list.length = 0;
 }
 
-function display(ctx: CanvasRenderingContext2D): void {
-  for (const line of lines) {
-    for (let i = 0; i < line.length - 1; ++i) {
-      drawLine(ctx, line[i].x, line[i].y, line[i + 1].x, line[i + 1].y);
-    }
-  }
-}
-
 function newLine(canvas: CanvasCtx, point: Point): void {
   canvas.lines.push([point]);
   document.dispatchEvent(drawingEvent);
+  clearList(canvas.undoBuffer);
 }
 
-function extendLine(canvas: CanvasCtx, point: Point): void {
+function extendNextLine(canvas: CanvasCtx, point: Point): void {
   if (canvas.lines.length === 0) return;
   canvas.lines[canvas.lines.length - 1].push(point);
   document.dispatchEvent(drawingEvent);
@@ -143,5 +126,11 @@ function undo(canvas: CanvasCtx) {
 function redo(canvas: CanvasCtx) {
   if (canvas.undoBuffer.length === 0) return;
   canvas.lines.push(canvas.undoBuffer.shift()!);
+  document.dispatchEvent(drawingEvent);
+}
+
+function clear(canvas: CanvasCtx) {
+  clearList(canvas.lines);
+  clearList(canvas.undoBuffer);
   document.dispatchEvent(drawingEvent);
 }
