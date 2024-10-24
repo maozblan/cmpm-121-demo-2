@@ -6,6 +6,8 @@ const app = document.querySelector<HTMLDivElement>("#app")!;
 document.title = APP_NAME;
 
 // utility //////////////////////////////////////////////////////////////////////
+let markerWidth: number = 1;
+
 const observationDock: EventTarget = new EventTarget();
 function observe(event: string, detail?: unknown) {
   observationDock.dispatchEvent(new CustomEvent(event, { detail }));
@@ -14,8 +16,12 @@ observationDock.addEventListener("drawing-changed", () => {
   displayDrawing();
 });
 observationDock.addEventListener("tool-moved", (event: Event) => {
-  const cursorEvent = event as CustomEvent<Point>;
-  cursor.update(cursorEvent.detail);
+  const cursorEvent = event as CustomEvent<Point | null>;
+  if (cursorEvent.detail === null) {
+    cursor.location = null;
+  } else {
+    cursor.update(cursorEvent.detail);
+  }
   displayDrawing();
 });
 
@@ -25,98 +31,105 @@ function clearList(list: any[]) {
   list.length = 0;
 }
 
-const drawingEvent: Event = new Event("drawing-changed");
 interface Point {
   x: number;
   y: number;
 }
-interface Line {
+interface Command {
+  display: (ctx: CanvasRenderingContext2D) => void;
+}
+interface Line extends Command {
   points: Point[];
   width: number;
+  extend: (point: Point) => void;
 }
 interface CanvasCtx {
-  lines: Line[];
-  undoBuffer: Line[];
-  lineWidth: number;
-  cursor: {
-    location: Point;
-  };
+  content: Command[];
+  undoBuffer: Command[];
   display: (ctx: CanvasRenderingContext2D) => void;
-  newLine: (point: Point) => void;
-  extendNextLine: (point: Point) => void;
+  add: (command: Command) => void;
   undo: () => void;
   redo: () => void;
   clear: () => void;
 }
 const canvasContent: CanvasCtx = {
-  lines: [],
+  content: [],
   undoBuffer: [],
-  lineWidth: 1,
-  cursor: {
-    location: { x: 0, y: 0 },
-  },
   display: function (ctx: CanvasRenderingContext2D): void {
-    this.lines.forEach((line) => {
-      for (let i = 0; i < line.points.length - 1; ++i) {
-        drawLine(line.width, line.points[i], line.points[i + 1]);
-      }
-    });
-
-    function drawLine(lineWidth: number, start: Point, end: Point) {
-      ctx.beginPath();
-      ctx.strokeStyle = "black";
-      ctx.lineWidth = lineWidth;
-      ctx.moveTo(start.x, start.y);
-      ctx.lineTo(end.x, end.y);
-      ctx.stroke();
-      ctx.closePath();
+    for (const command of this.content) {
+      command.display(ctx);
     }
   },
-  newLine: function (point: Point): void {
-    this.lines.push({ points: [point], width: this.lineWidth });
-    document.dispatchEvent(drawingEvent);
+  add: function (command: Command): void {
+    this.content.push(command);
     clearList(this.undoBuffer);
-  },
-  extendNextLine: function (point: Point): void {
-    if (this.lines.length === 0) return;
-    this.lines[this.lines.length - 1].points.push(point);
     observe("drawing-changed");
   },
   undo: function () {
-    if (this.lines.length === 0) return;
-    this.undoBuffer.unshift(this.lines.pop()!);
+    if (this.content.length === 0) return;
+    this.undoBuffer.unshift(this.content.pop()!);
     observe("drawing-changed");
   },
   redo: function () {
     if (this.undoBuffer.length === 0) return;
-    this.lines.push(this.undoBuffer.shift()!);
+    this.content.push(this.undoBuffer.shift()!);
     observe("drawing-changed");
   },
   clear: function () {
-    clearList(this.lines);
+    clearList(this.content);
     clearList(this.undoBuffer);
     observe("drawing-changed");
   },
 };
-interface Cursor {
-  canvasContext: CanvasCtx;
-  location: Point;
-  display: (ctx: CanvasRenderingContext2D) => void;
+
+interface Cursor extends Command {
+  location: Point | null;
+  style: string;
   update: (point: Point) => void;
 }
 const cursor: Cursor = {
-  canvasContext: canvasContent,
-  location: { x: 0, y: 0 },
+  location: null,
+  style: "*",
   display: function (ctx: CanvasRenderingContext2D): void {
-    const cursorSize = 13 * Math.log(this.canvasContext.lineWidth / 0.05);
+    if (this.location === null) return;
+    const cursorSize = 13 * Math.log(markerWidth / 0.05);
     ctx.font = `${cursorSize}px monospace`;
-    const offset = ctx.measureText("*").width / 2;
-    ctx.fillText("*", this.location.x - offset, this.location.y + offset);
+    const offset = ctx.measureText(this.style).width / 2;
+    ctx.fillText(
+      this.style,
+      this.location.x - offset,
+      this.location.y + offset
+    );
   },
   update: function (point: Point): void {
     this.location = point;
-  }
+  },
 };
+
+function newLine(start: Point, width: number): Line {
+  return {
+    points: [start],
+    width,
+    display: function (ctx: CanvasRenderingContext2D): void {
+      for (let i = 0; i < this.points.length - 1; ++i) {
+        drawLine(this.points[i], this.points[i + 1]);
+      }
+
+      function drawLine(start: Point, end: Point) {
+        ctx.beginPath();
+        ctx.strokeStyle = "black";
+        ctx.lineWidth = width;
+        ctx.moveTo(start.x, start.y);
+        ctx.lineTo(end.x, end.y);
+        ctx.stroke();
+        ctx.closePath();
+      }
+    },
+    extend: function (point: Point): void {
+      this.points.push(point);
+    },
+  };
+}
 
 // application interface //////////////////////////////////////////////////////
 const title = document.createElement("h1");
@@ -159,36 +172,39 @@ app.append(markerContainer);
 const thinMarker = document.createElement("button");
 thinMarker.textContent = "thin";
 thinMarker.addEventListener("click", () => {
-  canvasContent.lineWidth = 1;
+  markerWidth = 1;
 });
 markerContainer.append(thinMarker);
 
 const thickMarker = document.createElement("button");
 thickMarker.textContent = "thick";
 thickMarker.addEventListener("click", () => {
-  canvasContent.lineWidth = 5;
+  markerWidth = 5;
 });
 markerContainer.append(thickMarker);
 
 // event listeners /////////////////////////////////////////////////////////////
-let isDrawing: boolean = false;
+let currentLine: Line | null = null;
 canvas.addEventListener("mousedown", (e) => {
-  canvasContent.newLine({ x: e.offsetX, y: e.offsetY });
-  isDrawing = true;
+  currentLine = newLine(
+    { x: e.offsetX, y: e.offsetY },
+    markerWidth,
+  );
+  canvasContent.content.push(currentLine);
 });
 canvas.addEventListener("mousemove", (e) => {
-  if (isDrawing) {
-    canvasContent.extendNextLine({ x: e.offsetX, y: e.offsetY });
+  if (currentLine !== null) {
+    currentLine.extend({ x: e.offsetX, y: e.offsetY });
   }
   observe("tool-moved", { x: e.offsetX, y: e.offsetY });
 });
 canvas.addEventListener("mouseleave", () => {
-  observe("tool-moved", { x: -42, y: -42 });
+  observe("tool-moved", null);
 });
 document.addEventListener("mouseup", (e) => {
-  if (isDrawing) {
-    canvasContent.extendNextLine({ x: e.offsetX, y: e.offsetY });
-    isDrawing = false;
+  if (currentLine !== null) {
+    currentLine.extend({ x: e.offsetX, y: e.offsetY });
+    currentLine = null;
   }
 });
 
