@@ -7,13 +7,18 @@ document.title = APP_NAME;
 
 // utility //////////////////////////////////////////////////////////////////////
 const observationDock: EventTarget = new EventTarget();
+function observe(event: string, detail?: unknown) {
+  observationDock.dispatchEvent(new CustomEvent(event, { detail }));
+}
 observationDock.addEventListener("drawing-changed", () => {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
   canvasContent.display(ctx);
 });
-function observe(event: string) {
-  observationDock.dispatchEvent(new Event(event));
-}
+observationDock.addEventListener("tool-moved", (event: Event) => {
+  const cursorEvent = event as CustomEvent<Point>;
+  const { x, y } = cursorEvent.detail;
+  canvasContent.cursor.location = { x, y };
+  canvasContent.display(ctx);
+});
 
 // @ts-ignore: all purpose function
 // deno-lint-ignore no-explicit-any
@@ -27,7 +32,7 @@ function drawLine(
   x1: number,
   y1: number,
   x2: number,
-  y2: number,
+  y2: number
 ) {
   ctx.beginPath();
   ctx.strokeStyle = "black";
@@ -36,6 +41,10 @@ function drawLine(
   ctx.lineTo(x2, y2);
   ctx.stroke();
   ctx.closePath();
+}
+function drawCursor(ctx: CanvasRenderingContext2D, x: number, y: number) {
+  ctx.font = "32px monospace";
+  ctx.fillText("*", x - 8, y + 16);
 }
 
 const drawingEvent: Event = new Event("drawing-changed");
@@ -50,6 +59,9 @@ interface Line {
 interface CanvasCtx {
   lines: Line[];
   undoBuffer: Line[];
+  cursor: {
+    location: Point;
+  };
   display: (ctx: CanvasRenderingContext2D) => void;
   newLine: (point: Point, width: number) => void;
   extendNextLine: (point: Point) => void;
@@ -60,7 +72,11 @@ interface CanvasCtx {
 const canvasContent: CanvasCtx = {
   lines: [],
   undoBuffer: [],
+  cursor: {
+    location: { x: 0, y: 0 },
+  },
   display: function (ctx: CanvasRenderingContext2D): void {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
     this.lines.forEach((line) => {
       for (let i = 0; i < line.points.length - 1; ++i) {
         drawLine(
@@ -69,13 +85,14 @@ const canvasContent: CanvasCtx = {
           line.points[i].x,
           line.points[i].y,
           line.points[i + 1].x,
-          line.points[i + 1].y,
+          line.points[i + 1].y
         );
       }
     });
+    drawCursor(ctx, this.cursor.location.x, this.cursor.location.y);
   },
   newLine: function (point: Point, width: number): void {
-    this.lines.push({points: [point], width});
+    this.lines.push({ points: [point], width });
     document.dispatchEvent(drawingEvent);
     clearList(this.undoBuffer);
   },
@@ -164,6 +181,10 @@ canvas.addEventListener("mousemove", (e) => {
   if (isDrawing) {
     canvasContent.extendNextLine({ x: e.offsetX, y: e.offsetY });
   }
+  observe("tool-moved", { x: e.offsetX, y: e.offsetY });
+});
+canvas.addEventListener("mouseleave", () => {
+  observe("tool-moved", { x: -42, y: -42 });
 });
 document.addEventListener("mouseup", (e) => {
   if (isDrawing) {
@@ -171,3 +192,10 @@ document.addEventListener("mouseup", (e) => {
     isDrawing = false;
   }
 });
+
+// loop ////////////////////////////////////////////////////////////////////////
+function tick() {
+  canvasContent.display(ctx);
+  requestAnimationFrame(tick);
+}
+tick();
