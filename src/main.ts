@@ -6,6 +6,15 @@ const app = document.querySelector<HTMLDivElement>("#app")!;
 document.title = APP_NAME;
 
 // utility //////////////////////////////////////////////////////////////////////
+const observationDock: EventTarget = new EventTarget();
+observationDock.addEventListener("drawing-changed", () => {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  canvasContent.display(ctx);
+});
+function observe(event: string) {
+  observationDock.dispatchEvent(new Event(event));
+}
+
 // @ts-ignore: all purpose function
 // deno-lint-ignore no-explicit-any
 function clearList(list: any[]) {
@@ -73,22 +82,22 @@ const canvasContent: CanvasCtx = {
   extendNextLine: function (point: Point): void {
     if (this.lines.length === 0) return;
     this.lines[this.lines.length - 1].points.push(point);
-    document.dispatchEvent(drawingEvent);
+    observe("drawing-changed");
   },
   undo: function () {
     if (this.lines.length === 0) return;
     this.undoBuffer.unshift(this.lines.pop()!);
-    document.dispatchEvent(drawingEvent);
+    observe("drawing-changed");
   },
   redo: function () {
     if (this.undoBuffer.length === 0) return;
     this.lines.push(this.undoBuffer.shift()!);
-    document.dispatchEvent(drawingEvent);
+    observe("drawing-changed");
   },
   clear: function () {
     clearList(this.lines);
     clearList(this.undoBuffer);
-    document.dispatchEvent(drawingEvent);
+    observe("drawing-changed");
   },
 };
 
@@ -161,8 +170,4 @@ document.addEventListener("mouseup", (e) => {
     canvasContent.extendNextLine({ x: e.offsetX, y: e.offsetY });
     isDrawing = false;
   }
-});
-document.addEventListener("drawing-changed", () => {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  canvasContent.display(ctx);
 });
