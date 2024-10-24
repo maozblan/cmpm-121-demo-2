@@ -26,27 +26,6 @@ function clearList(list: any[]) {
   list.length = 0;
 }
 
-function drawLine(
-  ctx: CanvasRenderingContext2D,
-  lineWidth: number,
-  x1: number,
-  y1: number,
-  x2: number,
-  y2: number
-) {
-  ctx.beginPath();
-  ctx.strokeStyle = "black";
-  ctx.lineWidth = lineWidth;
-  ctx.moveTo(x1, y1);
-  ctx.lineTo(x2, y2);
-  ctx.stroke();
-  ctx.closePath();
-}
-function drawCursor(ctx: CanvasRenderingContext2D, x: number, y: number) {
-  ctx.font = "32px monospace";
-  ctx.fillText("*", x - 8, y + 16);
-}
-
 const drawingEvent: Event = new Event("drawing-changed");
 interface Point {
   x: number;
@@ -59,11 +38,12 @@ interface Line {
 interface CanvasCtx {
   lines: Line[];
   undoBuffer: Line[];
+  lineWidth: number;
   cursor: {
     location: Point;
   };
   display: (ctx: CanvasRenderingContext2D) => void;
-  newLine: (point: Point, width: number) => void;
+  newLine: (point: Point) => void;
   extendNextLine: (point: Point) => void;
   undo: () => void;
   redo: () => void;
@@ -72,6 +52,7 @@ interface CanvasCtx {
 const canvasContent: CanvasCtx = {
   lines: [],
   undoBuffer: [],
+  lineWidth: 1,
   cursor: {
     location: { x: 0, y: 0 },
   },
@@ -79,20 +60,29 @@ const canvasContent: CanvasCtx = {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     this.lines.forEach((line) => {
       for (let i = 0; i < line.points.length - 1; ++i) {
-        drawLine(
-          ctx,
-          line.width,
-          line.points[i].x,
-          line.points[i].y,
-          line.points[i + 1].x,
-          line.points[i + 1].y
-        );
+        drawLine(line.width, line.points[i], line.points[i + 1]);
       }
     });
-    drawCursor(ctx, this.cursor.location.x, this.cursor.location.y);
+    const cursorSize = 13 * Math.log(this.lineWidth / 0.05);
+    drawCursor(this.cursor.location);
+
+    function drawLine(lineWidth: number, start: Point, end: Point) {
+      ctx.beginPath();
+      ctx.strokeStyle = "black";
+      ctx.lineWidth = lineWidth;
+      ctx.moveTo(start.x, start.y);
+      ctx.lineTo(end.x, end.y);
+      ctx.stroke();
+      ctx.closePath();
+    }
+    function drawCursor(loc: Point) {
+      ctx.font = `${cursorSize}px monospace`;
+      const offset = ctx.measureText("*").width / 2;
+      ctx.fillText("*", loc.x - offset, loc.y + offset);
+    }
   },
-  newLine: function (point: Point, width: number): void {
-    this.lines.push({ points: [point], width });
+  newLine: function (point: Point): void {
+    this.lines.push({ points: [point], width: this.lineWidth });
     document.dispatchEvent(drawingEvent);
     clearList(this.undoBuffer);
   },
@@ -159,22 +149,21 @@ app.append(markerContainer);
 const thinMarker = document.createElement("button");
 thinMarker.textContent = "thin";
 thinMarker.addEventListener("click", () => {
-  markerThickness = 1;
+  canvasContent.lineWidth = 1;
 });
 markerContainer.append(thinMarker);
 
 const thickMarker = document.createElement("button");
 thickMarker.textContent = "thick";
 thickMarker.addEventListener("click", () => {
-  markerThickness = 5;
+  canvasContent.lineWidth = 5;
 });
 markerContainer.append(thickMarker);
 
 // event listeners /////////////////////////////////////////////////////////////
 let isDrawing: boolean = false;
-let markerThickness = 1;
 canvas.addEventListener("mousedown", (e) => {
-  canvasContent.newLine({ x: e.offsetX, y: e.offsetY }, markerThickness);
+  canvasContent.newLine({ x: e.offsetX, y: e.offsetY });
   isDrawing = true;
 });
 canvas.addEventListener("mousemove", (e) => {
