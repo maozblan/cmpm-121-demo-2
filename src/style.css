@@ -102,3 +102,7 @@ canvas {
   box-shadow: 0.5em 0.5em 0.5em #00000066;
   cursor: none;
 }
+
+div {
+  margin: 15px 0 15px 0;
+}

@@ -7,6 +7,8 @@ document.title = APP_NAME;
 
 // utility //////////////////////////////////////////////////////////////////////
 let markerWidth: number = 1;
+let tool: "marker" | "sticker" = "marker";
+const STICKER_SIZE: number = 32;
 
 const observationDock: EventTarget = new EventTarget();
 function observe(event: string, detail?: unknown) {
@@ -92,7 +94,12 @@ const cursor: Cursor = {
   style: "*",
   display: function (ctx: CanvasRenderingContext2D): void {
     if (this.location === null) return;
-    const cursorSize = 13 * Math.log(markerWidth / 0.05);
+    let cursorSize: number;
+    if (tool === "marker") {
+      cursorSize = 13 * Math.log(markerWidth / 0.05);
+    } else {
+      cursorSize = STICKER_SIZE;
+    }
     ctx.font = `${cursorSize}px monospace`;
     const offset = ctx.measureText(this.style).width / 2;
     ctx.fillText(
@@ -173,6 +180,8 @@ const thinMarker = document.createElement("button");
 thinMarker.textContent = "thin";
 thinMarker.addEventListener("click", () => {
   markerWidth = 1;
+  tool = "marker";
+  cursor.style = "*";
 });
 markerContainer.append(thinMarker);
 
@@ -180,6 +189,8 @@ const thickMarker = document.createElement("button");
 thickMarker.textContent = "thick";
 thickMarker.addEventListener("click", () => {
   markerWidth = 5;
+  tool = "marker";
+  cursor.style = "*";
 });
 markerContainer.append(thickMarker);
 
@@ -194,6 +205,10 @@ function newSticker(sticker: string) {
   const stickerButton = document.createElement("button");
   stickerButton.textContent = sticker;
   stickerContainer.append(stickerButton);
+  stickerButton.addEventListener("click", () => {
+    tool = "sticker";
+    cursor.style = sticker;
+  });
 }
 
 // event listeners /////////////////////////////////////////////////////////////
