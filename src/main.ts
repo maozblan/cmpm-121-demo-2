@@ -183,13 +183,23 @@ thickMarker.addEventListener("click", () => {
 });
 markerContainer.append(thickMarker);
 
+const stickerContainer = document.createElement("div");
+app.append(stickerContainer);
+
+["🥕", "🥞", "✨"].forEach((sticker: string) => {
+  newSticker(sticker);
+});
+
+function newSticker(sticker: string) {
+  const stickerButton = document.createElement("button");
+  stickerButton.textContent = sticker;
+  stickerContainer.append(stickerButton);
+}
+
 // event listeners /////////////////////////////////////////////////////////////
 let currentLine: Line | null = null;
 canvas.addEventListener("mousedown", (e) => {
-  currentLine = newLine(
-    { x: e.offsetX, y: e.offsetY },
-    markerWidth,
-  );
+  currentLine = newLine({ x: e.offsetX, y: e.offsetY }, markerWidth);
   canvasContent.content.push(currentLine);
 });
 canvas.addEventListener("mousemove", (e) => {
