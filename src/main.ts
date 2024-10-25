@@ -8,6 +8,7 @@ document.title = APP_NAME;
 // utility //////////////////////////////////////////////////////////////////////
 let markerWidth: number = 1;
 let tool: "marker" | "sticker" = "marker";
+let currentLine: Line | null = null;
 const STICKER_SIZE: number = 32;
 
 const observationDock: EventTarget = new EventTarget();
@@ -44,6 +45,10 @@ interface Line extends Command {
   points: Point[];
   width: number;
   extend: (point: Point) => void;
+}
+interface Sticker extends Command {
+  location: Point;
+  sticker: string;
 }
 interface CanvasCtx {
   content: Command[];
@@ -97,16 +102,17 @@ const cursor: Cursor = {
     let cursorSize: number;
     if (tool === "marker") {
       cursorSize = 13 * Math.log(markerWidth / 0.05);
+      ctx.font = `${cursorSize}px monospace`;
+      const offset = ctx.measureText(this.style).width / 2;
+      ctx.fillText(
+        this.style,
+        this.location.x - offset,
+        this.location.y + offset
+      );
     } else {
       cursorSize = STICKER_SIZE;
+      ctx.fillText(this.style, this.location.x, this.location.y);
     }
-    ctx.font = `${cursorSize}px monospace`;
-    const offset = ctx.measureText(this.style).width / 2;
-    ctx.fillText(
-      this.style,
-      this.location.x - offset,
-      this.location.y + offset
-    );
   },
   update: function (point: Point): void {
     this.location = point;
@@ -134,6 +140,17 @@ function newLine(start: Point, width: number): Line {
     },
     extend: function (point: Point): void {
       this.points.push(point);
+    },
+  };
+}
+
+function newSticker(position: Point, sticker: string): Sticker {
+  return {
+    location: position,
+    sticker,
+    display: function (ctx: CanvasRenderingContext2D): void {
+      ctx.font = `${STICKER_SIZE}px monospace`;
+      ctx.fillText(this.sticker, this.location.x, this.location.y);
     },
   };
 }
@@ -198,10 +215,10 @@ const stickerContainer = document.createElement("div");
 app.append(stickerContainer);
 
 ["🥕", "🥞", "✨"].forEach((sticker: string) => {
-  newSticker(sticker);
+  newStickerButton(sticker);
 });
 
-function newSticker(sticker: string) {
+function newStickerButton(sticker: string) {
   const stickerButton = document.createElement("button");
   stickerButton.textContent = sticker;
   stickerContainer.append(stickerButton);
@@ -212,10 +229,11 @@ function newSticker(sticker: string) {
 }
 
 // event listeners /////////////////////////////////////////////////////////////
-let currentLine: Line | null = null;
 canvas.addEventListener("mousedown", (e) => {
-  currentLine = newLine({ x: e.offsetX, y: e.offsetY }, markerWidth);
-  canvasContent.content.push(currentLine);
+  if (tool === "marker") {
+    currentLine = newLine({ x: e.offsetX, y: e.offsetY }, markerWidth);
+    canvasContent.content.push(currentLine);
+  }
 });
 canvas.addEventListener("mousemove", (e) => {
   if (currentLine !== null) {
@@ -230,6 +248,9 @@ document.addEventListener("mouseup", (e) => {
   if (currentLine !== null) {
     currentLine.extend({ x: e.offsetX, y: e.offsetY });
     currentLine = null;
+  }
+  if (tool === "sticker" && cursor.location !== null) {
+    canvasContent.add(newSticker({ x: e.offsetX, y: e.offsetY }, cursor.style));
   }
 });
 
