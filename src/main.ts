@@ -15,8 +15,6 @@ const THIN_BRUSH_WIDTH: number = 1;
 const THICK_BRUSH_WIDTH: number = 5;
 const DRAWING_CANVAS_SIZE: number = 256;
 const EXPORT_CANVAS_SIZE: number = 1024;
-const CURSOR_GROWTH_RATE: number = 0.05;
-const CURSOR_GROWTH_MULTIPLIER: number = 10;
 const DEFAULT_BRUSH_COLOR: string = "black";
 
 const observationDock: EventTarget = new EventTarget();
@@ -111,8 +109,7 @@ const cursor: Cursor = {
     let cursorSize: number;
     ctx.fillStyle = currentColor ?? DEFAULT_BRUSH_COLOR;
     if (tool === "brush") {
-      cursorSize =
-        CURSOR_GROWTH_MULTIPLIER * Math.log(brushWidth / CURSOR_GROWTH_RATE);
+      cursorSize = pixelToFontSize(brushWidth);
       ctx.font = `${cursorSize}px monospace`;
       const offset = ctx.measureText(this.style).width / 2;
       ctx.fillText(
@@ -197,6 +194,12 @@ function newSticker(position: Point, sticker: string): Sticker {
       ctx.fillText(this.sticker, this.location.x, this.location.y);
     },
   };
+}
+
+function pixelToFontSize(num: number): number {
+  const growthRate = 0.05;
+  const growthMultiplier = 10;
+  return growthMultiplier * Math.log(num / growthRate);
 }
 
 // application interface //////////////////////////////////////////////////////
