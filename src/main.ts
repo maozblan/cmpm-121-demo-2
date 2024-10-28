@@ -11,11 +11,9 @@ let tool: "brush" | "sticker" = "brush";
 let currentLine: Line | null = null;
 let currentColor: string | null = null;
 const STICKER_SIZE: number = 32;
-const THIN_BRUSH_WIDTH: number = 1;
-const THICK_BRUSH_WIDTH: number = 5;
 const DRAWING_CANVAS_SIZE: number = 256;
 const EXPORT_CANVAS_SIZE: number = 1024;
-const DEFAULT_BRUSH_COLOR: string = "black";
+const DEFAULT_BRUSH_COLOR: string = "white";
 
 const observationDock: EventTarget = new EventTarget();
 function observe(event: string, detail?: unknown) {
@@ -274,26 +272,28 @@ redoButton.addEventListener("click", () => {
 });
 utilityContainer.append(redoButton);
 
+const brush = document.createElement("button");
+brush.textContent = "brush";
+brush.addEventListener("click", () => {
+  tool = "brush";
+  cursor.style = "*";
+});
+utilityContainer.append(brush);
+
 const brushContainer = document.createElement("div");
 toolBar_div.append(brushContainer);
 
-const thinBrush = document.createElement("button");
-thinBrush.textContent = "thin";
-thinBrush.addEventListener("click", () => {
-  brushWidth = THIN_BRUSH_WIDTH;
-  tool = "brush";
-  cursor.style = "*";
+const sizeSlider = document.createElement("input");
+sizeSlider.id = "width-slider";
+sizeSlider.type = "range";
+sizeSlider.min = "1";
+sizeSlider.max = "20";
+sizeSlider.step = "5";
+sizeSlider.value = "1";
+sizeSlider.addEventListener("change", () => {
+  brushWidth = parseInt(sizeSlider.value);
 });
-brushContainer.append(thinBrush);
-
-const thickBrush = document.createElement("button");
-thickBrush.textContent = "thick";
-thickBrush.addEventListener("click", () => {
-  brushWidth = THICK_BRUSH_WIDTH;
-  tool = "brush";
-  cursor.style = "*";
-});
-brushContainer.append(thickBrush);
+brushContainer.append(sizeSlider);
 
 const stickerContainer = document.createElement("div");
 toolBar_div.append(stickerContainer);

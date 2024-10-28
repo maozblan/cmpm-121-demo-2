@@ -92,12 +92,15 @@ button:focus-visible {
   button {
     background-color: #f9f9f9;
   }
+  canvas {
+    border: #0a0a0a 4px solid;
+  }
 }
 
 /* i was here */
 
 canvas {
-  border: #0a0a0a 4px solid;
+  border: #a0a0a0 4px solid;
   border-radius: 0.5em;
   cursor: none;
 }
