@@ -111,6 +111,7 @@ const cursor: Cursor = {
       );
     } else {
       cursorSize = STICKER_SIZE;
+      ctx.font = `${cursorSize}px monospace`;
       ctx.fillText(this.style, this.location.x, this.location.y);
     }
   },
@@ -214,11 +215,20 @@ markerContainer.append(thickMarker);
 const stickerContainer = document.createElement("div");
 app.append(stickerContainer);
 
+const newStickerButton = document.createElement("button");
+newStickerButton.textContent = "+";
+newStickerButton.addEventListener("click", () => {
+  const sticker = prompt("Enter a sticker character:");
+  if (sticker === null) return;
+  makeNewStickerButton(sticker);
+});
+stickerContainer.append(newStickerButton);
+
 ["🥕", "🥞", "✨"].forEach((sticker: string) => {
-  newStickerButton(sticker);
+  makeNewStickerButton(sticker);
 });
 
-function newStickerButton(sticker: string) {
+function makeNewStickerButton(sticker: string) {
   const stickerButton = document.createElement("button");
   stickerButton.textContent = sticker;
   stickerContainer.append(stickerButton);
