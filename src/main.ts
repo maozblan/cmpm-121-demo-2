@@ -16,7 +16,8 @@ const THICK_BRUSH_WIDTH: number = 5;
 const DRAWING_CANVAS_SIZE: number = 256;
 const EXPORT_CANVAS_SIZE: number = 1024;
 const CURSOR_GROWTH_RATE: number = 0.05;
-const CURSOR_GROWTH_MULTIPLIER: number = 13;
+const CURSOR_GROWTH_MULTIPLIER: number = 10;
+const DEFAULT_BRUSH_COLOR: string = "black";
 
 const observationDock: EventTarget = new EventTarget();
 function observe(event: string, detail?: unknown) {
@@ -51,6 +52,7 @@ interface Command {
 interface Line extends Command {
   points: Point[];
   width: number;
+  color: string;
   extend: (point: Point) => void;
 }
 interface Sticker extends Command {
@@ -107,6 +109,7 @@ const cursor: Cursor = {
   display: function (ctx: CanvasRenderingContext2D): void {
     if (this.location === null) return;
     let cursorSize: number;
+    ctx.fillStyle = currentColor ?? DEFAULT_BRUSH_COLOR;
     if (tool === "brush") {
       cursorSize =
         CURSOR_GROWTH_MULTIPLIER * Math.log(brushWidth / CURSOR_GROWTH_RATE);
@@ -159,10 +162,11 @@ const palette: Palette = {
   },
 };
 
-function newLine(start: Point, width: number): Line {
+function newLine(start: Point, color: string, width: number): Line {
   return {
     points: [start],
     width,
+    color,
     display: function (ctx: CanvasRenderingContext2D): void {
       for (let i = 0; i < this.points.length - 1; ++i) {
         drawLine(this.points[i], this.points[i + 1]);
@@ -170,7 +174,7 @@ function newLine(start: Point, width: number): Line {
 
       function drawLine(start: Point, end: Point) {
         ctx.beginPath();
-        ctx.strokeStyle = "black";
+        ctx.strokeStyle = color;
         ctx.lineWidth = width;
         ctx.moveTo(start.x, start.y);
         ctx.lineTo(end.x, end.y);
@@ -215,7 +219,8 @@ contentContainer.append(toolBar_div);
 
 palette.div.id = "palette";
 toolBar_div.append(palette.div);
-[ // ms paint default colors
+// ms paint default colors
+[
   // first row
   "#000000",
   "#7f7f7f",
@@ -334,7 +339,7 @@ toolBar_div.append(exportButton);
 // event listeners /////////////////////////////////////////////////////////////
 canvas.addEventListener("mousedown", (e) => {
   if (tool === "brush") {
-    currentLine = newLine({ x: e.offsetX, y: e.offsetY }, brushWidth);
+    currentLine = newLine({ x: e.offsetX, y: e.offsetY }, currentColor ?? DEFAULT_BRUSH_COLOR, brushWidth);
     canvasContent.content.push(currentLine);
   }
 });
