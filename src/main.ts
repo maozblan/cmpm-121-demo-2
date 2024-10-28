@@ -264,6 +264,21 @@ document.addEventListener("mouseup", (e) => {
   }
 });
 
+const exportButton = document.createElement("button");
+exportButton.textContent = "export";
+exportButton.addEventListener("click", () => {
+  const exportCanvas = document.createElement("canvas");
+  exportCanvas.width = exportCanvas.height = 1024;
+  const exportCtx: CanvasRenderingContext2D = exportCanvas.getContext("2d")!;
+  exportCtx.scale(exportCanvas.width / canvas.width, exportCanvas.height / canvas.height);
+  canvasContent.display(exportCtx);
+  const anchor = document.createElement("a");
+  anchor.href = exportCanvas.toDataURL("image/png");
+  anchor.download = "sketchpad.png";
+  anchor.click();
+});
+app.append(exportButton);
+
 // loop ////////////////////////////////////////////////////////////////////////
 function displayDrawing() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
