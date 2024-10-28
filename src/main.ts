@@ -10,10 +10,9 @@ let brushWidth: number = 1;
 let tool: "brush" | "sticker" = "brush";
 let currentLine: Line | null = null;
 let currentColor: string | null = null;
-const STICKER_SIZE: number = 32;
 const DRAWING_CANVAS_SIZE: number = 256;
 const EXPORT_CANVAS_SIZE: number = 1024;
-const DEFAULT_BRUSH_COLOR: string = "white";
+const DEFAULT_BRUSH_COLOR: string = "#ed1c24";
 
 const observationDock: EventTarget = new EventTarget();
 function observe(event: string, detail?: unknown) {
@@ -54,6 +53,7 @@ interface Line extends Command {
 interface Sticker extends Command {
   location: Point;
   sticker: string;
+  size: number;
 }
 interface CanvasCtx {
   content: Command[];
@@ -104,10 +104,9 @@ const cursor: Cursor = {
   style: "*",
   display: function (ctx: CanvasRenderingContext2D): void {
     if (this.location === null) return;
-    let cursorSize: number;
+    const cursorSize: number = pixelToFontSize(brushWidth);
     ctx.fillStyle = currentColor ?? DEFAULT_BRUSH_COLOR;
     if (tool === "brush") {
-      cursorSize = pixelToFontSize(brushWidth);
       ctx.font = `${cursorSize}px monospace`;
       const offset = ctx.measureText(this.style).width / 2;
       ctx.fillText(
@@ -116,7 +115,6 @@ const cursor: Cursor = {
         this.location.y + offset
       );
     } else {
-      cursorSize = STICKER_SIZE;
       ctx.font = `${cursorSize}px monospace`;
       ctx.fillText(this.style, this.location.x, this.location.y);
     }
@@ -187,8 +185,9 @@ function newSticker(position: Point, sticker: string): Sticker {
   return {
     location: position,
     sticker,
+    size: pixelToFontSize(brushWidth),
     display: function (ctx: CanvasRenderingContext2D): void {
-      ctx.font = `${STICKER_SIZE}px monospace`;
+      ctx.font = `${this.size}px monospace`;
       ctx.fillText(this.sticker, this.location.x, this.location.y);
     },
   };
@@ -288,7 +287,6 @@ sizeSlider.id = "width-slider";
 sizeSlider.type = "range";
 sizeSlider.min = "1";
 sizeSlider.max = "20";
-sizeSlider.step = "5";
 sizeSlider.value = "1";
 sizeSlider.addEventListener("change", () => {
   brushWidth = parseInt(sizeSlider.value);
