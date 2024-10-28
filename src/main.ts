@@ -9,6 +9,7 @@ document.title = APP_NAME;
 let brushWidth: number = 1;
 let tool: "brush" | "sticker" = "brush";
 let currentLine: Line | null = null;
+let currentColor: string | null = null;
 const STICKER_SIZE: number = 32;
 const THIN_BRUSH_WIDTH: number = 1;
 const THICK_BRUSH_WIDTH: number = 5;
@@ -127,6 +128,37 @@ const cursor: Cursor = {
   },
 };
 
+interface Palette {
+  colors: string[];
+  div: HTMLDivElement;
+  add: (color: string) => void;
+}
+const palette: Palette = {
+  colors: [],
+  div: document.createElement("div"),
+  add: function (color: string): void {
+    if (!isHexColor(color)) {
+      console.error("invalid color!");
+      return;
+    }
+    this.colors.push(color);
+    this.div.append(paletteButton(color));
+
+    function isHexColor(c: string): boolean {
+      return /^#([0-9A-F]{3}|[0-9A-F]{6})$/i.test(c);
+    }
+    function paletteButton(c: string): HTMLButtonElement {
+      const button = document.createElement("button");
+      button.style.backgroundColor = c;
+      button.addEventListener("click", () => {
+        console.log(c);
+        currentColor = c;
+      });
+      return button;
+    }
+  },
+};
+
 function newLine(start: Point, width: number): Line {
   return {
     points: [start],
@@ -181,29 +213,58 @@ const toolBar_div = document.createElement("div");
 toolBar_div.id = "tool-bar";
 contentContainer.append(toolBar_div);
 
-const buttonContainer = document.createElement("div");
-toolBar_div.append(buttonContainer);
+palette.div.id = "palette";
+toolBar_div.append(palette.div);
+[ // ms paint default colors
+  // first row
+  "#000000",
+  "#7f7f7f",
+  "#880015",
+  "#ed1c24",
+  "#ff7f27",
+  "#fff200",
+  "#22b14c",
+  "#00a2e8",
+  "#3f48cc",
+  "#a349a4",
+  // second row
+  "#ffffff",
+  "#c3c3c3",
+  "#b97a57",
+  "#ffaec9",
+  "#ffc90e",
+  "#efe4b0",
+  "#b5e61d",
+  "#99d9ea",
+  "#7092be",
+  "#c8bfe7",
+].forEach((color) => {
+  palette.add(color);
+});
+
+const utilityContainer = document.createElement("div");
+toolBar_div.append(utilityContainer);
 
 const clearButton = document.createElement("button");
 clearButton.textContent = "clear";
 clearButton.addEventListener("click", () => {
   canvasContent.clear();
 });
-buttonContainer.append(clearButton);
+utilityContainer.append(clearButton);
 
 const undoButton = document.createElement("button");
 undoButton.textContent = "undo";
 undoButton.addEventListener("click", () => {
   canvasContent.undo();
 });
-buttonContainer.append(undoButton);
+utilityContainer.append(undoButton);
 
 const redoButton = document.createElement("button");
 redoButton.textContent = "redo";
 redoButton.addEventListener("click", () => {
   canvasContent.redo();
 });
-buttonContainer.append(redoButton);
+utilityContainer.append(redoButton);
 
 const brushContainer = document.createElement("div");
 toolBar_div.append(brushContainer);
