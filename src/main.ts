@@ -14,7 +14,7 @@ const THIN_BRUSH_WIDTH: number = 1;
 const THICK_BRUSH_WIDTH: number = 5;
 const DRAWING_CANVAS_SIZE: number = 256;
 const EXPORT_CANVAS_SIZE: number = 1024;
-const CURSOR_GROWTH_RATE: number = 0.5;
+const CURSOR_GROWTH_RATE: number = 0.05;
 const CURSOR_GROWTH_MULTIPLIER: number = 13;
 
 const observationDock: EventTarget = new EventTarget();
@@ -107,7 +107,8 @@ const cursor: Cursor = {
     if (this.location === null) return;
     let cursorSize: number;
     if (tool === "brush") {
-      cursorSize = CURSOR_GROWTH_MULTIPLIER * Math.log(brushWidth / CURSOR_GROWTH_RATE);
+      cursorSize =
+        CURSOR_GROWTH_MULTIPLIER * Math.log(brushWidth / CURSOR_GROWTH_RATE);
       ctx.font = `${cursorSize}px monospace`;
       const offset = ctx.measureText(this.style).width / 2;
       ctx.fillText(
@@ -167,13 +168,21 @@ const title = document.createElement("h1");
 title.textContent = APP_NAME;
 app.append(title);
 
+const contentContainer = document.createElement("div");
+contentContainer.id = "content";
+app.append(contentContainer);
+
 const canvas = document.createElement("canvas");
 const ctx: CanvasRenderingContext2D = canvas.getContext("2d")!;
 canvas.width = canvas.height = DRAWING_CANVAS_SIZE;
-app.append(canvas);
+contentContainer.append(canvas);
+
+const toolBar_div = document.createElement("div");
+toolBar_div.id = "tool-bar";
+contentContainer.append(toolBar_div);
 
 const buttonContainer = document.createElement("div");
-app.append(buttonContainer);
+toolBar_div.append(buttonContainer);
 
 const clearButton = document.createElement("button");
 clearButton.textContent = "clear";
@@ -197,7 +206,7 @@ redoButton.addEventListener("click", () => {
 buttonContainer.append(redoButton);
 
 const brushContainer = document.createElement("div");
-app.append(brushContainer);
+toolBar_div.append(brushContainer);
 
 const thinBrush = document.createElement("button");
 thinBrush.textContent = "thin";
@@ -218,7 +227,7 @@ thickBrush.addEventListener("click", () => {
 brushContainer.append(thickBrush);
 
 const stickerContainer = document.createElement("div");
-app.append(stickerContainer);
+toolBar_div.append(stickerContainer);
 
 const newStickerButton = document.createElement("button");
 newStickerButton.textContent = "+";
@@ -249,14 +258,17 @@ exportButton.addEventListener("click", () => {
   const exportCanvas = document.createElement("canvas");
   exportCanvas.width = exportCanvas.height = EXPORT_CANVAS_SIZE;
   const exportCtx: CanvasRenderingContext2D = exportCanvas.getContext("2d")!;
-  exportCtx.scale(exportCanvas.width / canvas.width, exportCanvas.height / canvas.height);
+  exportCtx.scale(
+    exportCanvas.width / canvas.width,
+    exportCanvas.height / canvas.height
+  );
   canvasContent.display(exportCtx);
   const anchor = document.createElement("a");
   anchor.href = exportCanvas.toDataURL("image/png");
   anchor.download = "sketchpad.png";
   anchor.click();
 });
-app.append(exportButton);
+toolBar_div.append(exportButton);
 
 // event listeners /////////////////////////////////////////////////////////////
 canvas.addEventListener("mousedown", (e) => {
