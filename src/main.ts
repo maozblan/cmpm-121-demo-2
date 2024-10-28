@@ -6,10 +6,16 @@ const app = document.querySelector<HTMLDivElement>("#app")!;
 document.title = APP_NAME;
 
 // utility //////////////////////////////////////////////////////////////////////
-let markerWidth: number = 1;
-let tool: "marker" | "sticker" = "marker";
+let brushWidth: number = 1;
+let tool: "brush" | "sticker" = "brush";
 let currentLine: Line | null = null;
 const STICKER_SIZE: number = 32;
+const THIN_BRUSH_WIDTH: number = 1;
+const THICK_BRUSH_WIDTH: number = 5;
+const DRAWING_CANVAS_SIZE: number = 256;
+const EXPORT_CANVAS_SIZE: number = 1024;
+const CURSOR_GROWTH_RATE: number = 0.5;
+const CURSOR_GROWTH_MULTIPLIER: number = 13;
 
 const observationDock: EventTarget = new EventTarget();
 function observe(event: string, detail?: unknown) {
@@ -100,8 +106,8 @@ const cursor: Cursor = {
   display: function (ctx: CanvasRenderingContext2D): void {
     if (this.location === null) return;
     let cursorSize: number;
-    if (tool === "marker") {
-      cursorSize = 13 * Math.log(markerWidth / 0.05);
+    if (tool === "brush") {
+      cursorSize = CURSOR_GROWTH_MULTIPLIER * Math.log(brushWidth / CURSOR_GROWTH_RATE);
       ctx.font = `${cursorSize}px monospace`;
       const offset = ctx.measureText(this.style).width / 2;
       ctx.fillText(
@@ -163,8 +169,7 @@ app.append(title);
 
 const canvas = document.createElement("canvas");
 const ctx: CanvasRenderingContext2D = canvas.getContext("2d")!;
-canvas.width = 256;
-canvas.height = 256;
+canvas.width = canvas.height = DRAWING_CANVAS_SIZE;
 app.append(canvas);
 
 const buttonContainer = document.createElement("div");
@@ -191,26 +196,26 @@ redoButton.addEventListener("click", () => {
 });
 buttonContainer.append(redoButton);
 
-const markerContainer = document.createElement("div");
-app.append(markerContainer);
+const brushContainer = document.createElement("div");
+app.append(brushContainer);
 
-const thinMarker = document.createElement("button");
-thinMarker.textContent = "thin";
-thinMarker.addEventListener("click", () => {
-  markerWidth = 1;
-  tool = "marker";
+const thinBrush = document.createElement("button");
+thinBrush.textContent = "thin";
+thinBrush.addEventListener("click", () => {
+  brushWidth = THIN_BRUSH_WIDTH;
+  tool = "brush";
   cursor.style = "*";
 });
-markerContainer.append(thinMarker);
+brushContainer.append(thinBrush);
 
-const thickMarker = document.createElement("button");
-thickMarker.textContent = "thick";
-thickMarker.addEventListener("click", () => {
-  markerWidth = 5;
-  tool = "marker";
+const thickBrush = document.createElement("button");
+thickBrush.textContent = "thick";
+thickBrush.addEventListener("click", () => {
+  brushWidth = THICK_BRUSH_WIDTH;
+  tool = "brush";
   cursor.style = "*";
 });
-markerContainer.append(thickMarker);
+brushContainer.append(thickBrush);
 
 const stickerContainer = document.createElement("div");
 app.append(stickerContainer);
@@ -238,10 +243,25 @@ function makeNewStickerButton(sticker: string) {
   });
 }
 
+const exportButton = document.createElement("button");
+exportButton.textContent = "export";
+exportButton.addEventListener("click", () => {
+  const exportCanvas = document.createElement("canvas");
+  exportCanvas.width = exportCanvas.height = EXPORT_CANVAS_SIZE;
+  const exportCtx: CanvasRenderingContext2D = exportCanvas.getContext("2d")!;
+  exportCtx.scale(exportCanvas.width / canvas.width, exportCanvas.height / canvas.height);
+  canvasContent.display(exportCtx);
+  const anchor = document.createElement("a");
+  anchor.href = exportCanvas.toDataURL("image/png");
+  anchor.download = "sketchpad.png";
+  anchor.click();
+});
+app.append(exportButton);
+
 // event listeners /////////////////////////////////////////////////////////////
 canvas.addEventListener("mousedown", (e) => {
-  if (tool === "marker") {
-    currentLine = newLine({ x: e.offsetX, y: e.offsetY }, markerWidth);
+  if (tool === "brush") {
+    currentLine = newLine({ x: e.offsetX, y: e.offsetY }, brushWidth);
     canvasContent.content.push(currentLine);
   }
 });
@@ -263,21 +283,6 @@ document.addEventListener("mouseup", (e) => {
     canvasContent.add(newSticker({ x: e.offsetX, y: e.offsetY }, cursor.style));
   }
 });
-
-const exportButton = document.createElement("button");
-exportButton.textContent = "export";
-exportButton.addEventListener("click", () => {
-  const exportCanvas = document.createElement("canvas");
-  exportCanvas.width = exportCanvas.height = 1024;
-  const exportCtx: CanvasRenderingContext2D = exportCanvas.getContext("2d")!;
-  exportCtx.scale(exportCanvas.width / canvas.width, exportCanvas.height / canvas.height);
-  canvasContent.display(exportCtx);
-  const anchor = document.createElement("a");
-  anchor.href = exportCanvas.toDataURL("image/png");
-  anchor.download = "sketchpad.png";
-  anchor.click();
-});
-app.append(exportButton);
 
 // loop ////////////////////////////////////////////////////////////////////////
 function displayDrawing() {
