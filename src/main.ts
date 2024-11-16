@@ -7,6 +7,7 @@ document.title = APP_NAME;
 
 // utility //////////////////////////////////////////////////////////////////////
 let brushWidth: number = 1;
+let brushAngle: number = 0;
 let tool: "brush" | "sticker" = "brush";
 let currentLine: Line | null = null;
 let currentColor: string | null = null;
@@ -54,6 +55,7 @@ interface Sticker extends Command {
   location: Point;
   sticker: string;
   size: number;
+  angle: number;
 }
 interface CanvasCtx {
   content: Command[];
@@ -105,6 +107,7 @@ const cursor: Cursor = {
   display: function (ctx: CanvasRenderingContext2D): void {
     if (this.location === null) return;
     const cursorSize: number = pixelToFontSize(brushWidth);
+    const angle: number = brushAngle;
     ctx.fillStyle = currentColor ?? DEFAULT_BRUSH_COLOR;
     if (tool === "brush") {
       ctx.font = `${cursorSize}px monospace`;
@@ -116,7 +119,12 @@ const cursor: Cursor = {
       );
     } else {
       ctx.font = `${cursorSize}px monospace`;
+      ctx.resetTransform();
+      ctx.translate(this.location.x, this.location.y);
+      ctx.rotate(angle * (Math.PI/180));
+      ctx.translate(-this.location.x, -this.location.y);
       ctx.fillText(this.style, this.location.x, this.location.y);
+      ctx.resetTransform();
     }
   },
   update: function (point: Point): void {
@@ -186,9 +194,16 @@ function newSticker(position: Point, sticker: string): Sticker {
     location: position,
     sticker,
     size: pixelToFontSize(brushWidth),
+    angle: brushAngle,
     display: function (ctx: CanvasRenderingContext2D): void {
       ctx.font = `${this.size}px monospace`;
+      ctx.translate(this.location.x, this.location.y);
+      ctx.rotate(this.angle * (Math.PI/180));
+      ctx.translate(-this.location.x, -this.location.y);
       ctx.fillText(this.sticker, this.location.x, this.location.y);
+      ctx.translate(this.location.x, this.location.y);
+      ctx.rotate(-this.angle * (Math.PI/180));
+      ctx.translate(-this.location.x, -this.location.y);
     },
   };
 }
@@ -293,6 +308,17 @@ sizeSlider.addEventListener("change", () => {
 });
 brushContainer.append(sizeSlider);
 
+const angleSlider = document.createElement("input");
+angleSlider.id = "width-slider";
+angleSlider.type = "range";
+angleSlider.min = "0";
+angleSlider.max = "360";
+angleSlider.value = "0";
+angleSlider.addEventListener("change", () => {
+  brushAngle = parseInt(angleSlider.value);
+});
+brushContainer.append(angleSlider);
+
 const stickerContainer = document.createElement("div");
 toolBar_div.append(stickerContainer);
 
@@ -323,6 +349,7 @@ const exportButton = document.createElement("button");
 exportButton.textContent = "export";
 exportButton.addEventListener("click", () => {
   const exportCanvas = document.createElement("canvas");
+  const tmpMultiplier = EXPORT_CANVAS_SIZE / DRAWING_CANVAS_SIZE;
   exportCanvas.width = exportCanvas.height = EXPORT_CANVAS_SIZE;
   const exportCtx: CanvasRenderingContext2D = exportCanvas.getContext("2d")!;
   exportCtx.scale(
