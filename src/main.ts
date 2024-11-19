@@ -6,6 +6,7 @@ const app = document.querySelector<HTMLDivElement>("#app")!;
 document.title = APP_NAME;
 
 // utility //////////////////////////////////////////////////////////////////////
+////// global variables //////
 let brushWidth: number = 1;
 let brushAngle: number = 0;
 let tool: "brush" | "sticker" = "brush";
@@ -15,6 +16,7 @@ const DRAWING_CANVAS_SIZE: number = 256;
 const EXPORT_CANVAS_SIZE: number = 1024;
 const DEFAULT_BRUSH_COLOR: string = "#ed1c24";
 
+////// event system //////
 const observationDock: EventTarget = new EventTarget();
 function observe(event: string, detail?: unknown) {
   observationDock.dispatchEvent(new CustomEvent(event, { detail }));
@@ -38,6 +40,7 @@ function clearList(list: any[]) {
   list.length = 0;
 }
 
+////// interfaces //////
 interface Point {
   x: number;
   y: number;
@@ -66,6 +69,20 @@ interface CanvasCtx {
   redo: () => void;
   clear: () => void;
 }
+
+interface Cursor extends Command {
+  location: Point | null;
+  style: string;
+  update: (point: Point) => void;
+}
+
+interface Palette {
+  colors: string[];
+  div: HTMLDivElement;
+  add: (color: string) => void;
+}
+
+////// initializing canvas w/ commands //////
 const canvasContent: CanvasCtx = {
   content: [],
   undoBuffer: [],
@@ -96,11 +113,7 @@ const canvasContent: CanvasCtx = {
   },
 };
 
-interface Cursor extends Command {
-  location: Point | null;
-  style: string;
-  update: (point: Point) => void;
-}
+////// initializing cursor //////
 const cursor: Cursor = {
   location: null,
   style: "*",
@@ -132,11 +145,7 @@ const cursor: Cursor = {
   },
 };
 
-interface Palette {
-  colors: string[];
-  div: HTMLDivElement;
-  add: (color: string) => void;
-}
+////// initializing palette //////
 const palette: Palette = {
   colors: [],
   div: document.createElement("div"),
@@ -163,6 +172,7 @@ const palette: Palette = {
   },
 };
 
+////// draw commands //////
 function newLine(start: Point, color: string, width: number): Line {
   return {
     points: [start],
@@ -232,6 +242,7 @@ const toolBar_div = document.createElement("div");
 toolBar_div.id = "tool-bar";
 contentContainer.append(toolBar_div);
 
+////// color pallette //////
 palette.div.id = "palette";
 toolBar_div.append(palette.div);
 // ms paint default colors
@@ -262,6 +273,7 @@ toolBar_div.append(palette.div);
   palette.add(color);
 });
 
+////// utility buttons //////
 const utilityContainer = document.createElement("div");
 toolBar_div.append(utilityContainer);
 
@@ -286,16 +298,17 @@ redoButton.addEventListener("click", () => {
 });
 utilityContainer.append(redoButton);
 
-const brush = document.createElement("button");
-brush.textContent = "brush";
-brush.addEventListener("click", () => {
+const brushButton = document.createElement("button");
+brushButton.textContent = "brush";
+brushButton.addEventListener("click", () => {
   tool = "brush";
   cursor.style = "*";
 });
-utilityContainer.append(brush);
+utilityContainer.append(brushButton);
 
-const brushContainer = document.createElement("div");
-toolBar_div.append(brushContainer);
+////// sliders //////
+const sliderContainer = document.createElement("div");
+toolBar_div.append(sliderContainer);
 
 const sizeSlider = document.createElement("input");
 sizeSlider.id = "width-slider";
@@ -306,7 +319,7 @@ sizeSlider.value = "1";
 sizeSlider.addEventListener("change", () => {
   brushWidth = parseInt(sizeSlider.value);
 });
-brushContainer.append(sizeSlider);
+sliderContainer.append(sizeSlider);
 
 const angleSlider = document.createElement("input");
 angleSlider.id = "width-slider";
@@ -317,8 +330,9 @@ angleSlider.value = "0";
 angleSlider.addEventListener("change", () => {
   brushAngle = parseInt(angleSlider.value);
 });
-brushContainer.append(angleSlider);
+sliderContainer.append(angleSlider);
 
+////// sticker buttons //////
 const stickerContainer = document.createElement("div");
 toolBar_div.append(stickerContainer);
 
@@ -345,11 +359,11 @@ function makeNewStickerButton(sticker: string) {
   });
 }
 
+////// export button //////
 const exportButton = document.createElement("button");
 exportButton.textContent = "export";
 exportButton.addEventListener("click", () => {
   const exportCanvas = document.createElement("canvas");
-  const tmpMultiplier = EXPORT_CANVAS_SIZE / DRAWING_CANVAS_SIZE;
   exportCanvas.width = exportCanvas.height = EXPORT_CANVAS_SIZE;
   const exportCtx: CanvasRenderingContext2D = exportCanvas.getContext("2d")!;
   exportCtx.scale(
@@ -364,7 +378,7 @@ exportButton.addEventListener("click", () => {
 });
 toolBar_div.append(exportButton);
 
-// event listeners /////////////////////////////////////////////////////////////
+// canvas mouse events /////////////////////////////////////////////////////////////
 canvas.addEventListener("mousedown", (e) => {
   if (tool === "brush") {
     currentLine = newLine({ x: e.offsetX, y: e.offsetY }, currentColor ?? DEFAULT_BRUSH_COLOR, brushWidth);
@@ -395,6 +409,5 @@ function displayDrawing() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   canvasContent.display(ctx);
   cursor.display(ctx);
-  requestAnimationFrame(displayDrawing);
 }
 displayDrawing();
