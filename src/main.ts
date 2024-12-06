@@ -9,7 +9,6 @@ document.title = APP_NAME;
 ////// global variables //////
 let brushWidth: number = 1;
 let brushAngle: number = 0;
-let tool: "brush" | "sticker" = "brush";
 let currentLine: Line | null = null;
 let currentColor: string | null = null;
 const DRAWING_CANVAS_SIZE: number = 256;
@@ -34,12 +33,6 @@ observationDock.addEventListener("tool-moved", (event: Event) => {
   displayDrawing();
 });
 
-// @ts-ignore: all purpose function
-// deno-lint-ignore no-explicit-any
-function clearList(list: any[]) {
-  list.length = 0;
-}
-
 ////// interfaces //////
 interface Point {
   x: number;
@@ -63,6 +56,7 @@ interface Sticker extends Command {
 interface CanvasCtx {
   content: Command[];
   undoBuffer: Command[];
+  notify: () => void;
   display: (ctx: CanvasRenderingContext2D) => void;
   add: (command: Command) => void;
   undo: () => void;
@@ -70,10 +64,17 @@ interface CanvasCtx {
   clear: () => void;
 }
 
-interface Cursor extends Command {
+interface Cursor {
   location: Point | null;
   style: string;
   update: (point: Point) => void;
+}
+
+type Tool = "brush" | "sticker";
+interface ToolManager {
+  tool: Tool;
+  setTool: (tool: Tool) => void;
+  configureCursor: (cursor: Cursor, style?: string) => void;
 }
 
 interface Palette {
@@ -86,6 +87,7 @@ interface Palette {
 const canvasContent: CanvasCtx = {
   content: [],
   undoBuffer: [],
+  notify: () => observe("drawing-changed"),
   display: function (ctx: CanvasRenderingContext2D): void {
     for (const command of this.content) {
       command.display(ctx);
@@ -93,23 +95,23 @@ const canvasContent: CanvasCtx = {
   },
   add: function (command: Command): void {
     this.content.push(command);
-    clearList(this.undoBuffer);
-    observe("drawing-changed");
+    this.undoBuffer = [];
+    this.notify();
   },
   undo: function () {
     if (this.content.length === 0) return;
     this.undoBuffer.unshift(this.content.pop()!);
-    observe("drawing-changed");
+    this.notify();
   },
   redo: function () {
     if (this.undoBuffer.length === 0) return;
     this.content.push(this.undoBuffer.shift()!);
-    observe("drawing-changed");
+    this.notify();
   },
   clear: function () {
-    clearList(this.content);
-    clearList(this.undoBuffer);
-    observe("drawing-changed");
+    this.content = [];
+    this.undoBuffer = [];
+    this.notify();
   },
 };
 
@@ -117,31 +119,19 @@ const canvasContent: CanvasCtx = {
 const cursor: Cursor = {
   location: null,
   style: "*",
-  display: function (ctx: CanvasRenderingContext2D): void {
-    if (this.location === null) return;
-    const cursorSize: number = pixelToFontSize(brushWidth);
-    const angle: number = brushAngle;
-    ctx.fillStyle = currentColor ?? DEFAULT_BRUSH_COLOR;
-    if (tool === "brush") {
-      ctx.font = `${cursorSize}px monospace`;
-      const offset = ctx.measureText(this.style).width / 2;
-      ctx.fillText(
-        this.style,
-        this.location.x - offset,
-        this.location.y + offset
-      );
-    } else {
-      ctx.font = `${cursorSize}px monospace`;
-      ctx.resetTransform();
-      ctx.translate(this.location.x, this.location.y);
-      ctx.rotate(angle * (Math.PI/180));
-      ctx.translate(-this.location.x, -this.location.y);
-      ctx.fillText(this.style, this.location.x, this.location.y);
-      ctx.resetTransform();
-    }
-  },
   update: function (point: Point): void {
     this.location = point;
+  },
+};
+
+////// initializing tool manager //////
+const toolManager: ToolManager = {
+  tool: "brush",
+  setTool: function (tool: Tool): void {
+    this.tool = tool;
+  },
+  configureCursor: function (cursor: Cursor, style: string = "*"): void {
+    cursor.style = style;
   },
 };
 
@@ -173,6 +163,35 @@ const palette: Palette = {
 };
 
 ////// draw commands //////
+function drawCursor(
+  ctx: CanvasRenderingContext2D,
+  cursor: Cursor,
+  brushProps: { width: number; angle: number; color: string }
+): void {
+  if (cursor.location === null) return;
+
+  const { width, angle, color } = brushProps;
+
+  ctx.fillStyle = color;
+  ctx.font = `${pixelToFontSize(width)}px monospace`;
+
+  if (toolManager.tool === "brush") {
+    const offset = ctx.measureText(cursor.style).width / 2;
+    ctx.fillText(
+      cursor.style,
+      cursor.location.x - offset,
+      cursor.location.y + offset
+    );
+  } else {
+    ctx.resetTransform();
+    ctx.translate(cursor.location.x, cursor.location.y);
+    ctx.rotate(angle * (Math.PI / 180));
+    ctx.translate(-cursor.location.x, -cursor.location.y);
+    ctx.fillText(cursor.style, cursor.location.x, cursor.location.y);
+    ctx.resetTransform();
+  }
+}
+
 function newLine(start: Point, color: string, width: number): Line {
   return {
     points: [start],
@@ -208,11 +227,11 @@ function newSticker(position: Point, sticker: string): Sticker {
     display: function (ctx: CanvasRenderingContext2D): void {
       ctx.font = `${this.size}px monospace`;
       ctx.translate(this.location.x, this.location.y);
-      ctx.rotate(this.angle * (Math.PI/180));
+      ctx.rotate(this.angle * (Math.PI / 180));
       ctx.translate(-this.location.x, -this.location.y);
       ctx.fillText(this.sticker, this.location.x, this.location.y);
       ctx.translate(this.location.x, this.location.y);
-      ctx.rotate(-this.angle * (Math.PI/180));
+      ctx.rotate(-this.angle * (Math.PI / 180));
       ctx.translate(-this.location.x, -this.location.y);
     },
   };
@@ -301,8 +320,8 @@ utilityContainer.append(redoButton);
 const brushButton = document.createElement("button");
 brushButton.textContent = "brush";
 brushButton.addEventListener("click", () => {
-  tool = "brush";
-  cursor.style = "*";
+  toolManager.setTool("brush");
+  toolManager.configureCursor(cursor);
 });
 utilityContainer.append(brushButton);
 
@@ -354,8 +373,8 @@ function makeNewStickerButton(sticker: string) {
   stickerButton.textContent = sticker;
   stickerContainer.append(stickerButton);
   stickerButton.addEventListener("click", () => {
-    tool = "sticker";
-    cursor.style = sticker;
+    toolManager.setTool("sticker");
+    toolManager.configureCursor(cursor, sticker);
   });
 }
 
@@ -380,8 +399,12 @@ toolBar_div.append(exportButton);
 
 // canvas mouse events /////////////////////////////////////////////////////////////
 canvas.addEventListener("mousedown", (e) => {
-  if (tool === "brush") {
-    currentLine = newLine({ x: e.offsetX, y: e.offsetY }, currentColor ?? DEFAULT_BRUSH_COLOR, brushWidth);
+  if (toolManager.tool === "brush") {
+    currentLine = newLine(
+      { x: e.offsetX, y: e.offsetY },
+      currentColor ?? DEFAULT_BRUSH_COLOR,
+      brushWidth
+    );
     canvasContent.content.push(currentLine);
   }
 });
@@ -399,7 +422,7 @@ document.addEventListener("mouseup", (e) => {
     currentLine.extend({ x: e.offsetX, y: e.offsetY });
     currentLine = null;
   }
-  if (tool === "sticker" && cursor.location !== null) {
+  if (toolManager.tool === "sticker" && cursor.location !== null) {
     canvasContent.add(newSticker({ x: e.offsetX, y: e.offsetY }, cursor.style));
   }
 });
@@ -408,6 +431,10 @@ document.addEventListener("mouseup", (e) => {
 function displayDrawing() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   canvasContent.display(ctx);
-  cursor.display(ctx);
+  drawCursor(ctx, cursor, {
+    width: brushWidth,
+    angle: brushAngle,
+    color: currentColor ?? DEFAULT_BRUSH_COLOR,
+  });
 }
 displayDrawing();
